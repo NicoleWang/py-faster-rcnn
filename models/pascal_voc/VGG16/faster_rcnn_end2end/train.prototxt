@@ -8,7 +8,7 @@ layer {
   python_param {
     module: 'roi_data_layer.layer'
     layer: 'RoIDataLayer'
-    param_str: "'num_classes': 21"
+    param_str: "'num_classes': 2"
   }
 }
 
@@ -388,10 +388,10 @@ layer {
 }
 
 layer {
-  name: "rpn_cls_score"
+  name: "rpn_text_cls_score"
   type: "Convolution"
   bottom: "rpn/output"
-  top: "rpn_cls_score"
+  top: "rpn_text_cls_score"
   param { lr_mult: 1.0 }
   param { lr_mult: 2.0 }
   convolution_param {
@@ -403,10 +403,10 @@ layer {
 }
 
 layer {
-  name: "rpn_bbox_pred"
+  name: "rpn_text_bbox_pred"
   type: "Convolution"
   bottom: "rpn/output"
-  top: "rpn_bbox_pred"
+  top: "rpn_text_bbox_pred"
   param { lr_mult: 1.0 }
   param { lr_mult: 2.0 }
   convolution_param {
@@ -418,9 +418,9 @@ layer {
 }
 
 layer {
-   bottom: "rpn_cls_score"
-   top: "rpn_cls_score_reshape"
-   name: "rpn_cls_score_reshape"
+   bottom: "rpn_text_cls_score"
+   top: "rpn_text_cls_score_reshape"
+   name: "rpn_text_cls_score_reshape"
    type: "Reshape"
    reshape_param { shape { dim: 0 dim: 2 dim: -1 dim: 0 } }
 }
@@ -428,7 +428,7 @@ layer {
 layer {
   name: 'rpn-data'
   type: 'Python'
-  bottom: 'rpn_cls_score'
+  bottom: 'rpn_text_cls_score'
   bottom: 'gt_boxes'
   bottom: 'im_info'
   bottom: 'data'
@@ -446,7 +446,7 @@ layer {
 layer {
   name: "rpn_loss_cls"
   type: "SoftmaxWithLoss"
-  bottom: "rpn_cls_score_reshape"
+  bottom: "rpn_text_cls_score_reshape"
   bottom: "rpn_labels"
   propagate_down: 1
   propagate_down: 0
@@ -461,7 +461,7 @@ layer {
 layer {
   name: "rpn_loss_bbox"
   type: "SmoothL1Loss"
-  bottom: "rpn_bbox_pred"
+  bottom: "rpn_text_bbox_pred"
   bottom: "rpn_bbox_targets"
   bottom: 'rpn_bbox_inside_weights'
   bottom: 'rpn_bbox_outside_weights'
@@ -475,7 +475,7 @@ layer {
 layer {
   name: "rpn_cls_prob"
   type: "Softmax"
-  bottom: "rpn_cls_score_reshape"
+  bottom: "rpn_text_cls_score_reshape"
   top: "rpn_cls_prob"
 }
 
@@ -491,7 +491,7 @@ layer {
   name: 'proposal'
   type: 'Python'
   bottom: 'rpn_cls_prob_reshape'
-  bottom: 'rpn_bbox_pred'
+  bottom: 'rpn_text_bbox_pred'
   bottom: 'im_info'
   top: 'rpn_rois'
 #  top: 'rpn_scores'
@@ -527,7 +527,7 @@ layer {
   python_param {
     module: 'rpn.proposal_target_layer'
     layer: 'ProposalTargetLayer'
-    param_str: "'num_classes': 21"
+    param_str: "'num_classes': 2"
   }
 }
 
@@ -606,10 +606,10 @@ layer {
   }
 }
 layer {
-  name: "cls_score"
+  name: "text_cls_score"
   type: "InnerProduct"
   bottom: "fc7"
-  top: "cls_score"
+  top: "text_cls_score"
   param {
     lr_mult: 1
   }
@@ -629,10 +629,10 @@ layer {
   }
 }
 layer {
-  name: "bbox_pred"
+  name: "text_bbox_pred"
   type: "InnerProduct"
   bottom: "fc7"
-  top: "bbox_pred"
+  top: "text_bbox_pred"
   param {
     lr_mult: 1
   }
@@ -640,7 +640,7 @@ layer {
     lr_mult: 2
   }
   inner_product_param {
-    num_output: 84
+    num_output: 8
     weight_filler {
       type: "gaussian"
       std: 0.001
@@ -652,22 +652,22 @@ layer {
   }
 }
 layer {
-  name: "loss_cls"
+  name: "text_loss_cls"
   type: "SoftmaxWithLoss"
-  bottom: "cls_score"
+  bottom: "text_cls_score"
   bottom: "labels"
   propagate_down: 1
   propagate_down: 0
-  top: "loss_cls"
+  top: "text_loss_cls"
   loss_weight: 1
 }
 layer {
-  name: "loss_bbox"
+  name: "text_loss_bbox"
   type: "SmoothL1Loss"
-  bottom: "bbox_pred"
+  bottom: "text_bbox_pred"
   bottom: "bbox_targets"
   bottom: "bbox_inside_weights"
   bottom: "bbox_outside_weights"
-  top: "loss_bbox"
+  top: "text_loss_bbox"
   loss_weight: 1
 }

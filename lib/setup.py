@@ -92,6 +92,7 @@ def customize_compiler_for_nvcc(self):
             # from the extra_compile_args in the Extension class
             postargs = extra_postargs['nvcc']
         else:
+            #postargs = extra_postargs['gcc'] ##original
             postargs = extra_postargs['gcc']
 
         super(obj, src, ext, cc_args, postargs, pp_opts)
@@ -126,7 +127,7 @@ ext_modules = [
         ['nms/nms_kernel.cu', 'nms/gpu_nms.pyx'],
         library_dirs=[CUDA['lib64']],
         libraries=['cudart'],
-        language='c++',
+        language='g++-4.9',
         runtime_library_dirs=[CUDA['lib64']],
         # this syntax is specific to this build system
         # we're only going to use certain compiler args with nvcc and not with
