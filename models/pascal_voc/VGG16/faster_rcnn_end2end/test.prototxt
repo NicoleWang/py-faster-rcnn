@@ -408,10 +408,10 @@ layer {
 }
 
 layer {
-  name: "rpn_cls_score"
+  name: "rpn_text_cls_score"
   type: "Convolution"
   bottom: "rpn/output"
-  top: "rpn_cls_score"
+  top: "rpn_text_cls_score"
   param { lr_mult: 1.0 decay_mult: 1.0 }
   param { lr_mult: 2.0 decay_mult: 0 }
   convolution_param {
@@ -422,10 +422,10 @@ layer {
   }
 }
 layer {
-  name: "rpn_bbox_pred"
+  name: "rpn_text_bbox_pred"
   type: "Convolution"
   bottom: "rpn/output"
-  top: "rpn_bbox_pred"
+  top: "rpn_text_bbox_pred"
   param { lr_mult: 1.0 decay_mult: 1.0 }
   param { lr_mult: 2.0 decay_mult: 0 }
   convolution_param {
@@ -436,9 +436,9 @@ layer {
   }
 }
 layer {
-   bottom: "rpn_cls_score"
-   top: "rpn_cls_score_reshape"
-   name: "rpn_cls_score_reshape"
+   bottom: "rpn_text_cls_score"
+   top: "rpn_text_cls_score_reshape"
+   name: "rpn_text_cls_score_reshape"
    type: "Reshape"
    reshape_param { shape { dim: 0 dim: 2 dim: -1 dim: 0 } }
 }
@@ -448,7 +448,7 @@ layer {
 layer {
   name: "rpn_cls_prob"
   type: "Softmax"
-  bottom: "rpn_cls_score_reshape"
+  bottom: "rpn_text_cls_score_reshape"
   top: "rpn_cls_prob"
 }
 layer {
@@ -462,7 +462,7 @@ layer {
   name: 'proposal'
   type: 'Python'
   bottom: 'rpn_cls_prob_reshape'
-  bottom: 'rpn_bbox_pred'
+  bottom: 'rpn_text_bbox_pred'
   bottom: 'im_info'
   top: 'rois'
   python_param {
@@ -551,10 +551,10 @@ layer {
   }
 }
 layer {
-  name: "cls_score"
+  name: "text_cls_score"
   type: "InnerProduct"
   bottom: "fc7"
-  top: "cls_score"
+  top: "text_cls_score"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -564,7 +564,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 21
+    num_output: 2
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -576,10 +576,10 @@ layer {
   }
 }
 layer {
-  name: "bbox_pred"
+  name: "text_bbox_pred"
   type: "InnerProduct"
   bottom: "fc7"
-  top: "bbox_pred"
+  top: "text_bbox_pred"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -589,7 +589,7 @@ layer {
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 84
+    num_output: 8
     weight_filler {
       type: "gaussian"
       std: 0.001
@@ -601,8 +601,8 @@ layer {
   }
 }
 layer {
-  name: "cls_prob"
+  name: "text_cls_prob"
   type: "Softmax"
-  bottom: "cls_score"
-  top: "cls_prob"
+  bottom: "text_cls_score"
+  top: "text_cls_prob"
 }

@@ -17,7 +17,7 @@ export PYTHONUNBUFFERED="True"
 #  --weights data/imagenet_models/VGG16.v2.caffemodel \
 #--weights output/faster_rcnn_end2end/text_chn_train/vgg16_text_iter_34000.caffemodel \
 #--weights data/imagenet_models/ZF.v2.caffemodel \
-python ./tools/train_net.py --gpu 2\
+python ./tools/train_net.py --gpu 0\
   --solver models/pascal_voc/VGG16/faster_rcnn_end2end/solver.prototxt \
   --imdb text_chn_train \
   --weights data/imagenet_models/VGG16.v2.caffemodel \

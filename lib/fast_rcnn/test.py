@@ -105,7 +105,7 @@ def _get_blobs(im, rois):
         blobs['rois'] = _get_rois_blob(rois, im_scale_factors)
     return blobs, im_scale_factors
 
-def im_detect(net, im, boxes=None):
+def im_detect(net, im, save_path, boxes=None):
     """Detect object classes in an image given object proposals.
 
     Arguments:
@@ -156,8 +156,11 @@ def im_detect(net, im, boxes=None):
     if cfg.TEST.HAS_RPN:
         assert len(im_scales) == 1, "Only single-image batch implemented"
         rois = net.blobs['rois'].data.copy()
+        #print rois.shape[0]
+        #print rois
         # unscale back to raw image space
         boxes = rois[:, 1:5] / im_scales[0]
+        #draw_boxes(im, boxes, save_path)
 
     if cfg.TEST.SVM:
         # use the raw scores before softmax under the assumption they
@@ -165,11 +168,12 @@ def im_detect(net, im, boxes=None):
         scores = net.blobs['cls_score'].data
     else:
         # use softmax estimated probabilities
-        scores = blobs_out['cls_prob']
+        scores = blobs_out['text_cls_prob']
+        #print scores
 
     if cfg.TEST.BBOX_REG:
         # Apply bounding-box regression deltas
-        box_deltas = blobs_out['bbox_pred']
+        box_deltas = blobs_out['text_bbox_pred']
         pred_boxes = bbox_transform_inv(boxes, box_deltas)
         pred_boxes = clip_boxes(pred_boxes, im.shape)
     else:
@@ -201,6 +205,36 @@ def vis_detections(im, class_name, dets, thresh=0.3):
                 )
             plt.title('{}  {:.3f}'.format(class_name, score))
             plt.show()
+
+def vis_detections_v2(im, class_name, dets, save_path, thresh=0.3):
+    """Visual debugging of detections."""
+    #im = im[:, :, (2, 1, 0)]
+    #for i in xrange(np.minimum(10, dets.shape[0])):
+    for i in xrange(0, dets.shape[0]):
+        bbox = dets[i, :4]
+        score = dets[i, -1]
+        if score > thresh:
+            cv2.rectangle(im, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 2)
+    cv2.imwrite(save_path, im)
+
+def write_result(boxes, save_path):
+    f = open(save_path, 'w')
+    for i in xrange(0, boxes.shape[0]):
+        box = boxes[i, 0:4].astype(int)
+        score = boxes[i, 4]
+        f.write("%d\t%d\t%d\t%d\t%f\n" % (box[0], box[1], box[2], box[3], score))
+    f.close()
+
+
+def draw_boxes(im, boxes, save_path):
+    """Visual debugging of detections."""
+    #im = im[:, :, (2, 1, 0)]
+    for i in xrange(0, boxes.shape[0]):
+        bbox = boxes[i, 0:]
+        cv2.rectangle(im, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 2)
+        cv2.imwrite(save_path, im)
+
+
 
 def apply_nms(all_boxes, thresh):
     """Apply non-maximum suppression to all predicted boxes output by the
@@ -241,10 +275,12 @@ def test_net(net, imdb, max_per_image=100, thresh=0.05, vis=False):
     if not cfg.TEST.HAS_RPN:
         roidb = imdb.roidb
 
+    save_boxes = []
     for i in xrange(num_images):
         # filter out any ground truth boxes
         if cfg.TEST.HAS_RPN:
             box_proposals = None
+            #print "Has RPN"
         else:
             # The roidb may contain ground-truth rois (for example, if the roidb
             # comes from the training or val split). We only want to evaluate
@@ -254,8 +290,13 @@ def test_net(net, imdb, max_per_image=100, thresh=0.05, vis=False):
             box_proposals = roidb[i]['boxes'][roidb[i]['gt_classes'] == 0]
 
         im = cv2.imread(imdb.image_path_at(i))
+        imname = imdb.image_path_at(i).split("/")[-1]
+        print imname
+        save_path = os.path.join('results', imname)
+        txt_path = os.path.join('results', imname + ".txt")
         _t['im_detect'].tic()
-        scores, boxes = im_detect(net, im, box_proposals)
+        scores, boxes = im_detect(net, im, save_path,  box_proposals)
+       # draw_boxes(im, boxes, save_path)
         _t['im_detect'].toc()
 
         _t['misc'].tic()
@@ -266,11 +307,19 @@ def test_net(net, imdb, max_per_image=100, thresh=0.05, vis=False):
             cls_boxes = boxes[inds, j*4:(j+1)*4]
             cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])) \
                 .astype(np.float32, copy=False)
+           # draw_boxes(im, cls_boxes, save_path)
             keep = nms(cls_dets, cfg.TEST.NMS)
             cls_dets = cls_dets[keep, :]
+            cls_boxes = cls_boxes[keep, :]
+            #draw_boxes(im, boxes, save_path)
+            vis = True;
             if vis:
-                vis_detections(im, imdb.classes[j], cls_dets)
+                #vis_detections(im, imdb.classes[j], cls_dets)
+                vis_detections_v2(im, imdb.classes[j], cls_dets, save_path)
+            write_result(cls_dets, txt_path)
+            save_boxes.append(cls_boxes)
             all_boxes[j][i] = cls_dets
+
 
         # Limit to max_per_image detections *over all classes*
         if max_per_image > 0:
@@ -287,9 +336,9 @@ def test_net(net, imdb, max_per_image=100, thresh=0.05, vis=False):
               .format(i + 1, num_images, _t['im_detect'].average_time,
                       _t['misc'].average_time)
 
-    det_file = os.path.join(output_dir, 'detections.pkl')
+    det_file = os.path.join("results", 'detections.pkl')
     with open(det_file, 'wb') as f:
-        cPickle.dump(all_boxes, f, cPickle.HIGHEST_PROTOCOL)
+        cPickle.dump(save_boxes, f, cPickle.HIGHEST_PROTOCOL)
 
-    print 'Evaluating detections'
-    imdb.evaluate_detections(all_boxes, output_dir)
+    #print 'Evaluating detections'
+    #imdb.evaluate_detections(all_boxes, output_dir)
